@@ -1,0 +1,526 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>보람서점</title>
+
+
+    <link rel="stylesheet" type="text/css" href="{% static 'css/booksearch.css' %}">
+    <link rel="shortcut icon" href="{% static 'images/icon.png' %}">
+    <!-- jQuery -->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js" ></script>
+    <!-- iamport.payment.js -->
+    <script type="text/javascript" src="https://cdn.iamport.kr/js/iamport.payment-1.1.5.js"></script>
+
+    <!-- 노래 재생 -->
+    <script>
+        function playmusic(dd,cc,bb){
+             var link = dd
+             var album = bb
+             var altitle = cc
+             $('#playvideo').attr('src',link);
+
+         }
+    </script>
+
+    <!-- 리뷰 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            //별점선택 이벤트 리스너
+            document.querySelector('.rating').addEventListener('click',function(e){
+                let elem = e.target;
+                if(elem.classList.contains('rate_radio')){
+                    rating.setRate(parseInt(elem.value));
+                }
+            })
+
+            //상품평 작성 글자수 초과 체크 이벤트 리스너 ( ? )
+            document.querySelector('.review_textarea').addEventListener('keydown',function(){
+                //리뷰 400자 초과 안되게 자동 자름
+                let review = document.querySelector('.review_textarea');
+                let lengthCheckEx = /^.{400,}$/;
+                if(lengthCheckEx.test(review.value)){
+                    //400자 초과 컷
+                    review.value = review.value.substr(0,400);
+                }
+            });
+        });
+        function Rating(){};
+        Rating.prototype.rate = 0;
+        Rating.prototype.setRate = function(newrate){
+            //별점 마킹 - 클릭한 별 이하 모든 별 체크 처리
+            this.rate = newrate;
+            document.querySelector('.ratefill').style.width = parseInt(newrate * 20) + 'px';
+            let items = document.querySelectorAll('.rate_radio');
+            items.forEach(function(item, idx){
+                if(idx < newrate){
+                    item.checked = true;
+                }else{
+                    item.checked = false;
+                }
+            });
+        }
+        let rating = new Rating();//별점 인스턴스 생성
+
+        // 좋아요/싫어요
+        $(function() {
+            $("#thislike").click(function() {
+                $.ajax({
+                url: '/likes/',
+                type:"POST",
+                data : {'booktitle': '{{ CBTtitle }}', 'userid' : '{{ userinfo.userid }}' ,'bookimage':"{{ CBTcover }}",'bookprice':'{{ CBTprice }}' },
+                dataType : "json",
+                success: function(msg) {
+                    var obj = JSON.parse(msg)
+                    var messeage = obj.result
+                    alert(messeage)
+                    }
+                })
+            });
+        });
+        $(function(){
+            $("#unthislike").click(function() {
+                $.ajax({
+                    url: '/unlikes/',
+                    type:"POST",
+                    data : {'delbooktitle': '{{ CBTtitle }}', 'deluserid' : '{{ userinfo.userid }}','delbookimage':"{{ CBTcover }}",'delbookprice':'{{ CBTprice }}' },
+                    dataType : "json",
+                    success: function(msg) {
+                        var obj = JSON.parse(msg)
+                        var messeage = obj.result2
+                        alert(messeage)
+                    }
+                })
+            });
+        });
+    </script>
+    <!-- 노래 리뷰 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            //별점선택 이벤트 리스너
+            document.querySelector('.matchrating').addEventListener('click',function(e){
+                let elem = e.target;
+                if(elem.classList.contains('matchrate_radio')){
+                    matchrating.setRate(parseInt(elem.value));
+                }
+            })
+        });
+        function MatchRating(){};
+        MatchRating.prototype.rate = 0;
+        MatchRating.prototype.setRate = function(newrate){
+            //별점 마킹 - 클릭한 별 이하 모든 별 체크 처리
+            this.rate = newrate;
+            let items = document.querySelectorAll('.matchrate_radio');
+            items.forEach(function(item, idx){
+                if(idx < newrate){
+                    item.checked = true;
+                }else{
+                    item.checked = false;
+                }
+            });
+        }
+        let matchrating = new MatchRating();
+    </script>
+    <!-- 재영님 리뷰 보완 (별점 없을시 글작성 불가) -->
+    <script>
+        function handleChange(checkbox) {
+            if(checkbox.checked == true) {
+                document.getElementById('sendreview').removeAttribute("disabled");
+            } else{
+                document.getElementById("sendreview").setAttribute("disabled", "disabled");
+            }
+        }
+    </script>
+
+    <!-- 화신님 리뷰 보완 ( 비회원시 리뷰 작성 불가 ) -->
+    {% if not request.session.username %}
+    <script>
+        $(function() {
+            $("#plzlogin").click(function() {
+                alert('로그인해주세요')
+            })
+        })
+    </script>
+    {% endif %}
+    <!--로그인 구매하기 -->
+    <script>
+        $(function(){
+            $("#purchase").click(function(){
+                var IMP = window.IMP;
+                IMP.init("imp30145569");
+
+                IMP.request_pay({
+                    pg : 'kakao', // version 1.1.0부터 지원.
+                    pay_method : 'card',
+                    merchant_uid : 'merchant_' + new Date().getTime(),
+                    name : '{{ CBTtitle }}',
+                    amount : '{{ CBTprice }}',
+                    customer_uid : '{{ userinfo.username }}' + new Date().getTime(),
+                    buyer_email : '{{ userinfo.useremail }}',
+                    buyer_name : '{{ userinfo.username }}',
+                    buyer_tel : '{{ user.info.userphone }}',
+                    buyer_addr : '서울특별시 강남구 삼성동',
+                    buyer_postcode : '123-456',
+                    m_redirect_url : 'http://127.0.0.1:8000/booksearch/'
+                }, function(rsp) {
+                    if ( rsp.success ) {
+                        var msg = '결제가 완료되었습니다.';
+
+                    } else {
+                        var msg = '결제에 실패하였습니다.';
+                        msg += '에러내용 : ' + rsp.error_msg;
+                    }
+                    alert(msg);
+                });
+            })
+        });
+
+    </script>
+
+    <!-- 비로그인 구매하기 -->
+    <script>
+        $(function(){
+            $("#unpurchase").click(function(){
+                alert("로그인 후 이용해주세요")
+            })
+        })
+    </script>
+
+
+
+    <!-- 노래평가 -->
+    <script>
+        $(function() {
+            $("#sendmatchreview").on("click", function(){
+                var formdata = $('#matchform').serialize()
+                if (!$("input:checked[Name='matchrating']").is(":checked")) {
+                    alert('별점을 체크해주세요')
+                } else if (!$("#musicreview").val()) {
+                    alert('리뷰도 써주세요')
+                } else {
+                    $.ajax({
+                        type: "POST",
+                        url: '/booksearch/insertmatchreview/',
+                        data: formdata,
+                        success: function(msg) {
+                            var obj = JSON.parse(msg)
+                            var messeage = obj.result
+                            alert(messeage)
+                            $('.side').attr('style','display:none')
+                        },
+                        error:function(request, status, error){
+
+                            alert("code:"+request.status+"\n"+"message:"+request.responseText+"\n"+"error:"+error);
+
+                        }
+                    })
+                }
+            });
+            $("#bookinfostory").slideUp()
+            $("#bookinfowhere").on("click",function(){
+                if ($("#bookinfowhere").next().attr('id') =='down') {
+                    $("#bookinfostory").slideDown()
+                    $("#bookinfowhere").next().replaceWith('<img id="up" src="/static/images/up.png">')
+                }
+                else if ($("#bookinfowhere").next().attr('id') =='up') {
+                    $("#bookinfostory").slideUp()
+                    $("#bookinfowhere").next().replaceWith('<img id="down" src="/static/images/down.png">')
+                }
+            });
+            $("#sellerinfo").slideUp()
+            $("#booksellerinfowhere").on("click",function(){
+                if ($("#booksellerinfowhere").next().attr('id') =='down') {
+                    $("#sellerinfo").slideDown()
+                    $("#booksellerinfowhere").next().replaceWith('<img id="up" src="/static/images/up.png">')
+                }
+                else if ($("#booksellerinfowhere").next().attr('id') =='up') {
+                    $("#sellerinfo").slideUp()
+                    $("#booksellerinfowhere").next().replaceWith('<img id="down" src="/static/images/down.png">')
+                }
+            });
+        });
+   </script>
+    <style>
+        #songchage:hover{ cursor: pointer; }
+        #likepage a:hover{ cursor: pointer; }
+        #likepage button:hover{ cursor: pointer; }
+        #buylink button:hover{ cursor: pointer; }
+        #bookinfowhere:hover {cursor:pointer;}
+        #booksellerinfowhere {cursor:pointer;}
+    </style>
+
+</head>
+<body>
+    <!-- 상단바 -->
+    <div class="page_head">
+        <div id="TopLogo" onclick="location.href='/'">
+            <img src="{% static 'images/b3_logo.png' %}" width=80px height=80px>
+        </div>
+        <div id="head_signup">
+            <a id="title">보람서점</a>
+            <form method="post" action="/booksearch/"  id="fromimage">
+            {% if not request.session.username %}
+            <input type="text" id="search" name="booktitle" placeholder="감성을 담은 온라인 서점, 보람서점" required>
+            <input type="submit" value="검색" id="search2">
+            <div id="head_signup2">
+                <a href="{% url 'signup' %}" id="signup"><span> 회원가입 </span></a>
+                <a href="{% url 'login' %}" id="login"><span> 로그인 </span></a>
+                <a href="{% url 'customer' %}"id='center'><span>고객센터</span></a>
+            {% else %}
+                {% if request.session.username == userinfo.userid %}
+                <input type="text" id="search" name="booktitle" placeholder="감성을 담은 온라인 서점, 보람서점" required>
+                <input type="submit" value="검색" id="search2">
+                    <a id="username">{{userinfo.username}}</a>
+                    <a style="color: black; top:40px; font-size: 22px; position: relative; left:790px;">님 환영합니다.</a>
+                    <a href="{% url 'logout' %}" id="logout"><span> 로그아웃 </span></a>
+                    <a href="{% url 'customer' %}"id='center' style="position: relative;top:40px;left:850px;"><span>고객센터</span></a>
+                    <a href="{% url 'mypage' %}" id="mp_icon">
+                        <img src="{% static 'images/customer.png' %}" style="width:50px; height:50px;">
+                    </a>
+                {% endif %}
+            {% endif %}
+            </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="top_pic">
+        <div id="image_dark"></div>
+        <div class="top">
+            <p id="intro">저희는 감성을 판매합니다.</p>
+            <p>감성을 담은 온라인 서점, 보람서점</p>
+        </div>
+    </div>
+
+    <!-- 책 정보란 -->
+    <div id="page_body">
+            <div id="base">
+        <div id="bookbase">
+            <!-- 책 정보 1-->
+            <div id="bookcover"><!--책 표지-->
+                <img src="{{ CBTcover }}" id="bookcover_image">
+                <span id="likepage">
+                    {% if not request.session.username %}
+                        <a href="{% url 'login' %}"><button class="like_icon"><img src="{% static 'images/like_icon.png' %}" height =30px width=40px/></button></a>
+                        <a href="{% url 'login' %}"><button class="like_icon">><img src="{% static 'images/dislike.png' %}" height =30px width=30px id="dislike"/></button></a>
+                    {% else %}
+                    <button class="like_icon" id="thislike"><img src="{% static 'images/like_icon.png' %}" height =30px width=40px/></button>
+                    <button id="unthislike" class="like_icon"><img src="{% static 'images/dislike.png' %}" height =30px width=30px id="dislike"/></button>
+                    {% endif %}
+                </span>
+            </div>
+            <div id ='book_simple'>
+
+                <div id="booktitle" class="bookinfo">
+                    <text id="search_title">{{ CBTtitle }}</text>
+                </div>
+                <div id="bookwriteperson" class="bookinfo">
+                    <a id="bookwritepersonwhere">저자 </a>
+                    <text id="whowirte">{{ CBTauthor }}</text>
+                </div>
+                <div id="booksell" class="bookinfo">
+                    <a id="booksellwhere">출판사</a>
+                    <text id="seller">{{ CBTpublisher }}</text>
+                </div>
+                <div id="bookprice" class="bookinfo">
+                    <text id="bookpricewhere">가격</text>
+                    <text id="buyprice">{{ CBTprice }}</text>
+                    <a id="won"> 원</a>
+                </div>
+
+                <!-- 감성배색 파렛트 -->
+                <div class="gamsung_title">
+                    <a class="gamsung_title">#감성배색</a>
+                </div>
+                <div id="colorpalet">
+                    {% for i in colorlist %}
+                    <div style="float:left; width:50px;height:110px;background-color:rgb({{ i }});"></div>
+                    {% endfor %}
+                </div>
+
+                <!-- 구매하기 -->
+                <div>
+                    {% if request.session.username %}
+                        <button id="purchase">구매하기</button>
+                    {% else %}
+                        <button id="unpurchase">구매하기</button>
+                    {% endif %}
+                </div>
+
+            </div>
+                    <!-- 책 정보 2 : 노래리스트 -->
+        <div id = 'songbase'>
+            <div id="singplace">
+               <div id="video">
+                   <iframe id="playvideo" autoplay; controls; loop; src="{{ musicdefault }}";>저작권문제</iframe>
+                   <!-- 앨범 이미지 : css -->
+                   <img  id="album" src=""></img>
+                   <div id="singlist">
+                       <a id="recommendation">추천 노래 리스트</a>
+                       {% for i,j,a,b in playlist %}
+                           <div id="songchage" name="{{b}}" value="{{ a }}" onclick="playmusic('{{ j }}','{{a}}','{{b}}')">{{ i }}</div>
+                       {% endfor %}
+                   </div>
+               </div>
+               <!-- 앨범 제목 : css -->
+               <div id="albumtitle" ></div>
+           </div>
+           <div id="songplace">
+               <div id="songlist"></div>
+               <div id="songvideo"></div>
+           </div>
+       </div>
+   </div>
+        </div>
+
+
+    <!-- 책 정보 3 : 작품 소개/서평/리뷰 -->
+    <p></p>
+    <div id="bookplace2">
+        <div id="bookinfo">
+            <div  class="bookmenu"><a id="bookinfowhere">작품 소개</a><img id="down" style="right:20px;" src="/static/images/down.png"></div>
+            </br>
+            <text id="bookinfostory">{{ CBSstory }}</text>
+        </div>
+        <div id="booksellerinfo">
+            <div  class="bookmenu"><a id="booksellerinfowhere">출판사 서평</a><img id="down" style="right:20px;" src="/static/images/down.png"></div></br>
+            <text id="sellerinfo"> {{ CBSreview }}</text>
+        </div>
+        <!-- 리뷰 게시판 -->
+        <p id="review_title" class="bookmenu">리뷰 게시판</p>
+        <div id="review">
+            <table border="0">
+                <col width="150" />
+                <col width="150" />
+                <col width="700" />
+                <col width="150" />
+                <tr>
+                    <th style="text-align:center;">작성자</th>
+                    <th style="text-align:center;">별점</th>
+                    <th style="text-align:center;">리뷰</th>
+                    <th style="text-align:center;">작성일</th>
+                </tr>
+                {% if not list %}
+                <tr>
+                    <th colspan="4" style="text-align:center;">------------작성된 글이 없습니다------------</th>
+                </tr>
+                {% else %}
+                    {% for id,rating,review,date in list %}
+                        <tr>
+                            <td style="text-align:center;">{{ id }}</td>
+                            <td style="text-align:center;">{{ rating }}</td>
+                            <td style="text-align:center">{{ review }}</td>
+                            <td style="text-align:center;">{{ date }}</td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+            </table>
+        </div>
+        <br>
+        <!-- 리뷰 작성칸 -->
+        <form action="{% url 'insertreview' %}" method="post">
+
+            <div id ="reviewtable">
+                <div id="review_rating rating_point">
+                    <input type="hidden" id="foruserid" name="foruserid" value="{{ userinfo.userid }}"/>
+                    <input type="hidden" id="forbookname" name="forbookname" value="{{ CBTtitle }}"/>
+                    <div class="warning_msg">평점</div>
+                    <div class="rating">
+                        <div class="ratefill"></div>
+                        <!-- [D] 해당 별점이 선택될 때 그 점수 이하의 input엘리먼트에 checked 클래스 추가 -->
+                        <input type="checkbox" name="rating" id="rating1" value="1" class="rate_radio" title="1점" onchange='handleChange(this);'>
+                        <label for="rating1"></label>
+                        <input type="checkbox" name="rating" id="rating2" value="2" class="rate_radio" title="2점" onchange='handleChange(this);'>
+                        <label for="rating2"></label>
+                        <input type="checkbox" name="rating" id="rating3" value="3" class="rate_radio" title="3점" onchange='handleChange(this);'>
+                        <label for="rating3"></label>
+                        <input type="checkbox" name="rating" id="rating4" value="4" class="rate_radio" title="4점" onchange='handleChange(this);'>
+                        <label for="rating4"></label>
+                        <input type="checkbox" name="rating" id="rating5" value="5" class="rate_radio" title="5점" onchange='handleChange(this);'>
+                        <label for="rating5"></label>
+                    </div>
+                </div>
+            </div>
+            <div id="textreview">
+                <div id="think">감상평</div>
+                <span>
+                    {% if not request.session.username %}
+                        <td ><textarea name="matchreview" readonly id="plzlogin" placeholder="여러분의 소중한 리뷰 하나가 큰 힘이 됩니다.&#13;&#10;(별점을 정해야 리뷰를 보낼 수 있습니다.)"></textarea></td>
+                    {% else %}
+                        <td><textarea name="review" placeholder="여러분의 소중한 리뷰 하나가 큰 힘이 됩니다.&#13;&#10;(별점을 정해야 리뷰를 보낼 수 있습니다.)"></textarea></td>
+                    {% endif %}
+                </span>
+                <span class="button">
+                    {% if not request.session.username %}
+                    <input class='side_button'id='cancel' type="button" value="취소" />
+                    <input class='side_button'id='sendreview' type="submit" value="글작성" disabled="disabled" />
+                </span>
+                    {% else %}
+                <span class="button">
+                    <input class='side_button' id='cancel' type="button" value="취소"  />
+                    <input class='side_button' id='sendreview' type="submit" value="글작성" disabled="disabled" />
+                    {% endif %}
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <!-- 노래 평가 -->
+    <div class="side">
+        <form action="{% url 'insertmatchreview' %}" method="post" id="matchform">
+            <table id='match'border="0">
+                <tr>
+                    <th>
+                        <div class="review_rating rating_point">
+                            <div id="warning_msg"><a id="warning">책과 노래가 잘 맞는지 알려주세요.</a></div>
+                            <div class="matchrating">
+                                <div class="matchratefill"></div>
+                                <!-- [D] 해당 별점이 선택될 때 그 점수 이하의 input엘리먼트에 checked 클래스 추가 -->
+                                <input type="checkbox" name="matchrating" id="matchrating1" value="1" class="matchrate_radio" title="1점">
+                                <label for="rating1"></label>
+                                <input type="checkbox" name="matchrating" id="matchrating2" value="2" class="matchrate_radio" title="2점">
+                                <label for="rating2"></label>
+                                <input type="checkbox" name="matchrating" id="matchrating3" value="3" class="matchrate_radio" title="3점" >
+                                <label for="rating3"></label>
+                                <input type="checkbox" name="matchrating" id="matchrating4" value="4" class="matchrate_radio" title="4점">
+                                <label for="rating4"></label>
+                                <input type="checkbox" name="matchrating" id="matchrating5" value="5" class="matchrate_radio" title="5점">
+                                <label for="rating5"></label>
+                            </div>
+                        </div>
+                    </th>
+
+                </tr>
+                <tr>
+                    <td>
+                        <input type="text" id='reviewbooktitle2' name='reviewbooktitle2' value='{{ CBTtitle }}' >
+                        <input type="text" id='matchreviewid2' name='matchreviewid2' value='{{ userinfo.userid }}' >
+                    </td>
+                </tr>
+                <tr>
+                    <td><textarea id="musicreview" name="matchreview"></textarea></td>
+                </tr>
+                <tr>
+                    <td>
+                        <input class='side_button' id='sendmatchreview' type="button" value="글작성" />
+                        <input class='side_button' id ='cancel_but' type="button" value="취소" onclick="" />
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    </div>
+
+    <div id="page_foot">
+        <div id="foot_logo"></div>
+        <div id="companyinfo">
+            <span id="company_address">(주) 보람상조 | 서울특별시 강남구 언주로 508 4층(역삼동, 서울상록빌딩)</span>
+            <span id="copyright">Copyright by BoramBooks Co., Ltd. All rights reserved.</span>
+        </div>
+    </div>
+
+
+</body>
+</html>
